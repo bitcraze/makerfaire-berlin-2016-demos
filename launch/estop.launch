@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="joy_dev" default="/dev/input/js1" />
+
+  <node name="joy_estop" pkg="joy" type="joy_node" output="screen">
+    <param name="dev" value="$(arg joy_dev)" />
+    <remap from="joy" to="joy_estop"/>
+  </node>
+</launch>

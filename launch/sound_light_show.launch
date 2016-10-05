@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="uri" default="radio://0/100/2M/E7E7E7E7E7" />
+  <arg name="frame" default="base_link" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="serial" default="/dev/ttyACM3" />
+  <arg name="joy_estop_dev" default="/dev/input/js1" />
+
+  <node name="log_range" pkg="bitcraze_lps_estimator" type="log_range.py" />
+
+  <param name="robot_description" command="$(find xacro)/xacro.py $(find crazyflie_description)/urdf/crazyflie2.urdf.xacro" />
+  <node name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find bitcraze_lps_estimator)/data/rvizconfig_with_goal.rviz"/>
+
+
+  <group ns="crazyflie">
+    <rosparam command="load" file="$(find bitcraze_lps_estimator)/data/anchor_pos.yaml" />
+
+    <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
+      <param name="uri" value="$(arg uri)" />
+      <param name="tf_prefix" value="crazyflie" />
+      <rosparam>
+        genericLogTopics: ["log_kfpos"]
+        genericLogTopicFrequencies: [30]
+        genericLogTopic_log_kfpos_Variables: ["kalman.stateX", "kalman.stateY", "kalman.stateZ"]
+      </rosparam>
+    </node>
+
+    <node name="joy" pkg="joy" type="joy_node" output="screen">
+      <param name="dev" value="$(arg joy_dev)" />
+    </node>
+
+    <node name="joystick_controller" pkg="crazyflie_demo" type="controller.py" output="screen">
+      <param name="use_crazyflie_controller" value="True" />
+    </node>
+
+    <node name="controller_bridge" pkg="bitcraze_lps_estimator" type="crazyflie_controller_bridge.py" output="screen">
+      <param name="assisted_takeoff" value="True"/>
+      <param name="assisted_landing" value="True"/>
+      <param name="reconnect_on_takeoff" value="True"/>
+    </node>
+
+    <node name="lps_efk_bridge" pkg="bitcraze_lps_estimator" type="lps_ekf_bridge.py" output="screen"/>
+
+    <node name="lps_viz" pkg="bitcraze_lps_estimator" type="lps_viz.py" />
+
+    <node name="lowbat" pkg="mf_berlin_2016" type="bat_supervisor.py" output="screen">
+      <remap from="lowbat" to="land" />
+    </node>
+
+    <node name="reconnect" pkg="mf_berlin_2016" type="reconnect_manager.py" output="screen"/>
+
+  </group>
+
+  <node name="midi_ros" pkg="mf_berlin_2016" type="midi-ros.py" output="screen" />
+
+  <node name="led_coordinates" pkg="mf_berlin_2016" type="led-coordinates.py" args="$(arg serial)" output="screen"/>
+
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster"
+        args="1 0 0 0 0 0 1 world lps 100" />
+
+  <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch" />
+
+  <node name="joy_estop" pkg="joy" type="joy_node" output="screen">
+    <param name="dev" value="$(arg joy_estop_dev)" />
+    <remap from="joy" to="joy_estop"/>
+  </node>
+  <node name="estop" pkg="mf_berlin_2016" type="estop.py" output="screen"/>
+
+</launch>

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="uri" default="radio://0/23/2M/E7E7E7E7E7" />
+
+  <group ns="crazyflie1">
+    <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
+      <param name="uri" value="$(arg uri)" />
+      <param name="tf_prefix" value="crazyflie1" />
+      <rosparam>
+        genericLogTopics: ["log_kfpos"]
+        genericLogTopicFrequencies: [30]
+        genericLogTopic_log_kfpos_Variables: ["kalman.stateX", "kalman.stateY", "kalman.stateZ"]
+      </rosparam>
+    </node>
+  </group>
+</launch>

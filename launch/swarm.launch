@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<launch>
+  <!--<arg name="uri0" default="radio://0/119/2M/E7E7E7E7E7" />-->
+  <arg name="uri0" default="radio://0/23/2M/E7E7E7E7E7" />
+  <arg name="uri1" default="radio://0/25/2M"/>
+  <arg name="frame" default="base_link" />
+  <arg name="joy_dev" default="/dev/input/js0" />
+  <arg name="joy_estop_dev" default="/dev/input/js1" />
+
+  <rosparam command="load" file="$(find mf_berlin_2016)/swarm/anchor_pos.yaml" />
+
+  <param name="robot_description" command="$(find xacro)/xacro.py $(find crazyflie_description)/urdf/crazyflie2.urdf.xacro" />
+  <node name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find mf_berlin_2016)/swarm/rvizconfig.rviz"/>
+
+  <node pkg="mf_berlin_2016" type="swarmctrl.py" name="swarmctrl" output="screen" />
+
+  <node name="joy" pkg="joy" type="joy_node" output="screen">
+    <param name="dev" value="$(arg joy_dev)" />
+  </node>
+
+  <group ns="crazyflie0">
+    <rosparam command="load" file="$(find bitcraze_lps_estimator)/data/anchor_pos.yaml" />
+
+    <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
+      <param name="uri" value="$(arg uri0)" />
+      <param name="tf_prefix" value="crazyflie0" />
+      <rosparam>
+        genericLogTopics: ["log_kfpos", "log_rpy"]
+        genericLogTopicFrequencies: [30, 10]
+        genericLogTopic_log_kfpos_Variables: ["kalman.stateX", "kalman.stateY", "kalman.stateZ"]
+        genericLogTopic_log_rpy_Variables: ["ctrltarget.roll", "ctrltarget.pitch", "ctrltarget.yaw"]
+      </rosparam>
+    </node>
+
+    <node name="controller_bridge" pkg="bitcraze_lps_estimator" type="crazyflie_controller_bridge.py" output="screen"/>
+
+    <node name="lps_efk_bridge" pkg="bitcraze_lps_estimator" type="lps_ekf_bridge.py" output="screen">
+      <param name="tf_prefix" value="crazyflie1" />
+    </node>
+
+    <node name="lps_viz" pkg="bitcraze_lps_estimator" type="lps_viz.py" />
+
+    <node name="bat_supervisor" pkg="mf_berlin_2016" type="bat_supervisor.py" output="screen"/>
+    <node name="reconnect_manager" pkg="mf_berlin_2016" type="reconnect_manager.py"  output="screen"/>
+
+  </group>
+
+<group ns="crazyflie1">
+    <rosparam command="load" file="$(find bitcraze_lps_estimator)/data/anchor_pos.yaml" />
+
+    <node pkg="crazyflie_driver" type="crazyflie_add" name="crazyflie_add" output="screen">
+      <param name="uri" value="$(arg uri1)" />
+      <param name="tf_prefix" value="crazyflie1" />
+      <rosparam>
+        genericLogTopics: ["log_kfpos"]
+        genericLogTopicFrequencies: [30]
+        genericLogTopic_log_kfpos_Variables: ["kalman.stateX", "kalman.stateY", "kalman.stateZ"]
+      </rosparam>
+    </node>
+
+    <node name="controller_bridge" pkg="bitcraze_lps_estimator" type="crazyflie_controller_bridge.py" output="screen"/>
+
+    <node name="lps_efk_bridge" pkg="bitcraze_lps_estimator" type="lps_ekf_bridge.py" output="screen">
+      <param name="tf_prefix" value="crazyflie1" />
+    </node>
+
+    <node name="lps_viz" pkg="bitcraze_lps_estimator" type="lps_viz.py" />
+
+    <node name="bat_supervisor" pkg="mf_berlin_2016" type="bat_supervisor.py" output="screen"/>
+    <node name="reconnect_manager" pkg="mf_berlin_2016" type="reconnect_manager.py"  output="screen"/>
+
+  </group>
+
+
+  <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster"
+        args="1 0 0 0 0 0 1 world lps 100" />
+
+  <include file="$(find crazyflie_driver)/launch/crazyflie_server.launch" />
+
+  <node name="joy_estop" pkg="joy" type="joy_node" output="screen">
+    <param name="dev" value="$(arg joy_estop_dev)" />
+    <remap from="joy" to="joy_estop"/>
+  </node>
+  <node name="estop" pkg="mf_berlin_2016" type="estop.py" output="screen"/>
+</launch>
